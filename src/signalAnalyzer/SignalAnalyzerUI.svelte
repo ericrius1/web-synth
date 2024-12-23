@@ -2,7 +2,7 @@
   // import SignalAnalyzerGlobalControls from 'src/signalAnalyzer/SignalAnalyzerGlobalControls.svelte';
   import type { SignalAnalyzerInst } from 'src/signalAnalyzer/SignalAnalyzerInst';
     import ChiFieldUi from 'src/visualizations/ChiField/ChiFieldUI.svelte';
-  // import LineSpectrogramUI from 'src/visualizations/LineSpectrogram/LineSpectrogramUI.svelte';
+  import LineSpectrogramUI from 'src/visualizations/LineSpectrogram/LineSpectrogramUI.svelte';
 
 
   import OscilloscopeUI from 'src/visualizations/Oscilloscope/OscilloscopeUI.svelte';
@@ -13,7 +13,7 @@
 
 <div class="root">
   <div class="line-spectrogram-wrapper">
-    <!-- <LineSpectrogramUI inst={inst.lineSpectrogram} store={inst.lineSpectrogram.store} /> -->
+    <LineSpectrogramUI inst={inst.lineSpectrogram} store={inst.lineSpectrogram.store} />
     <ChiFieldUi />
     
     <!-- <SignalAnalyzerGlobalControls analyserNode={inst.input} store={inst.lineSpectrogram.store} /> -->

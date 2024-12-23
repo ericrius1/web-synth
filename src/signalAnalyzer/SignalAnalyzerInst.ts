@@ -48,11 +48,11 @@ export class SignalAnalyzerInst {
   private awpHandle: AudioWorkletNode | null = null;
   public oscilloscope: Oscilloscope;
   public lineSpectrogram: LineSpectrogram;
-  // Need to connect the analyzer AWP to the audio graph so it gets driven
   private silentGain: GainNode;
   public oscilloscopeUIState: Writable<OscilloscopeUIState>;
   public chiFieldUIState: Writable<ChiFieldUIState>;
   public chiField: ChiField;
+  private sharedFFTBuffer: SharedArrayBuffer;
 
   constructor(ctx: AudioContext, initialState: SerializedSignalAnalyzerInst) {
     this.oscilloscopeUIState = writable(initialState.oscilloscopeUIState);
@@ -65,10 +65,17 @@ export class SignalAnalyzerInst {
     this.silentGain = ctx.createGain();
     this.silentGain.gain.value = 0;
     this.silentGain.connect(ctx.destination);
-    this.oscilloscope = new Oscilloscope(initialState.oscilloscopeUIState);
-    this.chiField = new ChiField(initialState.chiFieldUIState);
 
-    this.lineSpectrogram = new LineSpectrogram(initialState.lineSpectrogramUIState, this.input);
+    const bufferSize = Math.max(LineSpectrogramFFTSize / 2, Int32Array.BYTES_PER_ELEMENT * 8);
+    this.sharedFFTBuffer = new SharedArrayBuffer(bufferSize);
+
+    this.oscilloscope = new Oscilloscope(initialState.oscilloscopeUIState);
+    this.chiField = new ChiField(initialState.chiFieldUIState, this.sharedFFTBuffer);
+    this.lineSpectrogram = new LineSpectrogram(
+      initialState.lineSpectrogramUIState,
+      this.input
+      // this.sharedFFTBuffer
+    );
 
     this.init().catch(err => {
       logError('Error initializing signal analyzer', err);
@@ -103,7 +110,6 @@ export class SignalAnalyzerInst {
     this.input.connect(this.awpHandle);
     this.awpHandle.connect(this.silentGain);
 
-    // We need to make sure the AWP doesn't send the SAB before we register our even listener
     this.awpHandle.port.postMessage({ type: 'sendSAB' });
   }
 
@@ -115,6 +121,7 @@ export class SignalAnalyzerInst {
   public resume() {
     this.oscilloscope.resume();
     this.lineSpectrogram.start();
+    this.chiField.start();
   }
 
   public serialize(): SerializedSignalAnalyzerInst {

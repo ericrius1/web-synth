@@ -1,93 +1,95 @@
+import { get, type Writable, writable } from 'svelte/store';
+
 import { logError } from 'src/sentry';
 import { AsyncOnce } from 'src/util';
-import type {
-  ChiFieldUIState,
-  ChiFieldWindowType,
-  ChiFieldWorkerMessage,
-} from 'src/visualizations/ChiField/types';
+import type { ChiFieldUIState, ChiFieldWorkerMessage } from 'src/visualizations/ChiField/types';
 
 const ChiFieldWasmBytes = new AsyncOnce(
   () =>
     fetch(
       process.env.ASSET_PATH +
-        'oscilloscope.wasm?cacheBust=' +
+        'spectrum_viz_full.wasm?cacheBust=' +
         (window.location.href.includes('localhost') ? '' : genRandomStringID())
     ).then(res => res.arrayBuffer()),
   true
 );
 
+/**
+ * Visualization of the immediate spectrum of audio input signal.  Uses `AnalyserNode` to perform STFFT and
+ * `OffscreenCanvas` to render the spectrogram.  The spectrogram is rendered as a smooth line with the line's
+ * Y position at each point representing the amplitude of the frequency at that point.
+ */
 export class ChiField {
+  public store: Writable<ChiFieldUIState>;
   private renderWorker: Worker;
-  private sab: Int32Array = new Int32Array(8);
+  private frequencyDataSAB: SharedArrayBuffer;
+  private running = false;
 
-  constructor(initialState: ChiFieldUIState) {
+  constructor(initialState: ChiFieldUIState, sharedArrayBuffer: SharedArrayBuffer) {
+    this.store = writable(initialState);
+
     this.renderWorker = new Worker(new URL('./ChiFieldRenderer.worker', import.meta.url));
-    this.init().catch(err => {
-      logError('Error initializing chi-field', err);
-    });
 
-    this.setWindow(initialState.window.type, initialState.window.value);
-    this.setFrozen(initialState.frozen);
-    this.setFrameByFrame(initialState.frameByFrame);
+    this.frequencyDataSAB = sharedArrayBuffer;
+
+    this.init().catch(err => {
+      logError('Error initializing oscilloscope', err);
+    });
+  }
+
+  public getSharedArrayBuffer(): SharedArrayBuffer {
+    return this.frequencyDataSAB;
   }
 
   private async init() {
     const wasmBytes = await ChiFieldWasmBytes.get();
-    const msg: ChiFieldWorkerMessage = { type: 'setWasmBytes', wasmBytes };
-    this.renderWorker.postMessage(msg);
-  }
-
-  public setSAB(sab: SharedArrayBuffer) {
-    this.sab = new Int32Array(sab);
-    const msg: ChiFieldWorkerMessage = { type: 'setSAB', sab };
-    this.renderWorker.postMessage(msg);
-  }
-
-  public setView(view: OffscreenCanvas, dpr: number) {
-    // dpr must be an integer
-    if (dpr !== Math.floor(dpr)) {
-      throw new Error('dpr must be an integer for oscilloscope');
-    }
-    this.renderWorker.postMessage({ type: 'setView', view, dpr }, [view]);
-  }
-
-  public resizeView(newWidth: number, newHeight: number) {
-    const msg: ChiFieldWorkerMessage = { type: 'resizeView', newWidth, newHeight };
-    this.renderWorker.postMessage(msg);
-  }
-
-  public setWindow(newWindowType: ChiFieldWindowType, newWindowLength: number) {
     const msg: ChiFieldWorkerMessage = {
-      type: 'setWindow',
-      window: { type: newWindowType, value: newWindowLength },
+      type: 'setWasmBytes',
+      wasmBytes,
+      frequencyDataSAB: this.frequencyDataSAB,
+      notifySAB: this.notifySAB,
     };
     this.renderWorker.postMessage(msg);
   }
 
-  public setFrozen(frozen: boolean) {
-    const msg: ChiFieldWorkerMessage = { type: 'setFrozen', frozen };
+  // We need to drive animation from the main thread because getting the frequency data from the
+  // analyser node can only be done on the main thread.
+  private animate = () => {
+    if (!this.running) {
+      return;
+    }
+
+    requestAnimationFrame(() => this.animate());
+  };
+
+  public setCanvas(canvas: OffscreenCanvas, dpr: number) {
+    if (dpr !== Math.floor(dpr)) {
+      throw new Error('dpr must be an integer');
+    }
+
+    const msg: ChiFieldWorkerMessage = { type: 'setCanvas', canvas, dpr };
+    this.renderWorker.postMessage(msg, [canvas]);
+  }
+
+  public resizeView(width: number, height: number) {
+    const msg: ChiFieldWorkerMessage = { type: 'resizeCanvas', width, height };
     this.renderWorker.postMessage(msg);
   }
 
-  public setFrameByFrame(frameByFrame: boolean) {
-    const msg: ChiFieldWorkerMessage = { type: 'setFrameByFrame', frameByFrame };
-    this.renderWorker.postMessage(msg);
+  public start() {
+    this.running = true;
+    this.animate();
   }
 
-  public setSnapF0ToMIDI(snapF0ToMIDI: boolean) {
-    const msg: ChiFieldWorkerMessage = { type: 'setSnapF0ToMIDI', snapF0ToMIDI };
-    this.renderWorker.postMessage(msg);
-  }
-
-  public pause() {
-    Atomics.store(this.sab, 0, 1);
-  }
-
-  public resume() {
-    Atomics.store(this.sab, 0, 0);
+  public stop() {
+    this.running = false;
   }
 
   public destroy() {
     this.renderWorker.terminate();
+  }
+
+  public serialize(): ChiFieldUIState {
+    return get(this.store);
   }
 }
