@@ -19,7 +19,7 @@ export interface ChiFieldUIState {
   smoothingCoeff: number;
 }
 
-export const ChiFieldSpecrogramUIState = (): ChiFieldUIState => ({
+export const buildDefaultChiFieldUIState = (): ChiFieldUIState => ({
   rangeDb: [-80, -20],
   smoothingCoeff: 0.9,
 });
