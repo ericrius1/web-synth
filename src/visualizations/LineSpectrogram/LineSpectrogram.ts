@@ -25,32 +25,19 @@ const LineSpectrogramWasmBytes = new AsyncOnce(
  */
 export class LineSpectrogram {
   public store: Writable<LineSpectrogramUIState>;
-  private analyserNode: AnalyserNode;
   private renderWorker: Worker;
+  private sharedFFTBuffer: SharedArrayBuffer;
   private notifySAB: SharedArrayBuffer;
-  private notifySABI32: Int32Array;
-  private frequencyDataSAB: SharedArrayBuffer;
-  private frequencyDataSABU8: Uint8Array;
-  private frequencyDataBufTemp: Uint8Array;
-  private running = false;
-  private frameIx = 0;
 
-  constructor(initialState: LineSpectrogramUIState, analyserNode: AnalyserNode) {
+  constructor(
+    initialState: LineSpectrogramUIState,
+    sharedFFTBuffer: SharedArrayBuffer,
+    notifySAB: SharedArrayBuffer
+  ) {
     this.store = writable(initialState);
-    if (analyserNode.fftSize !== LineSpectrogramFFTSize) {
-      throw new Error(
-        `LineSpectrogram requires analyserNode.fftSize to be ${LineSpectrogramFFTSize}, but it was ${analyserNode.fftSize}`
-      );
-    }
-    this.analyserNode = analyserNode;
+    this.sharedFFTBuffer = sharedFFTBuffer;
+    this.notifySAB = notifySAB;
     this.renderWorker = new Worker(new URL('./LineSpectrogram.worker', import.meta.url));
-
-    this.notifySAB = new SharedArrayBuffer(4);
-    this.notifySABI32 = new Int32Array(this.notifySAB);
-    this.frequencyDataSAB = new SharedArrayBuffer(LineSpectrogramFFTSize / 2);
-    this.frequencyDataSABU8 = new Uint8Array(this.frequencyDataSAB); // this is a view over the shared raw buffer. Lets you read/write
-    // to the shared buffer as 8-bit unsigned integers
-    this.frequencyDataBufTemp = new Uint8Array(LineSpectrogramFFTSize / 2);
 
     this.init().catch(err => {
       logError('Error initializing oscilloscope', err);
@@ -62,30 +49,11 @@ export class LineSpectrogram {
     const msg: LineSpectrogramWorkerMessage = {
       type: 'setWasmBytes',
       wasmBytes,
-      frequencyDataSAB: this.frequencyDataSAB,
+      frequencyDataSAB: this.sharedFFTBuffer,
       notifySAB: this.notifySAB,
     };
     this.renderWorker.postMessage(msg);
   }
-
-  // We need to drive animation from the main thread because getting the frequency data from the
-  // analyser node can only be done on the main thread.
-  private animate = () => {
-    if (!this.running) {
-      return;
-    }
-
-    const frameIx = (this.frameIx + 1) % 100_000;
-    this.frameIx = frameIx;
-
-    // Browser is hilarious and doesn't let us write to shared buffer directly, so we have to waste a copy.
-    this.analyserNode.getByteFrequencyData(this.frequencyDataBufTemp);
-    this.frequencyDataSABU8.set(this.frequencyDataBufTemp);
-    Atomics.store(this.notifySABI32, 0, frameIx);
-    Atomics.notify(this.notifySABI32, 0);
-
-    requestAnimationFrame(() => this.animate());
-  };
 
   public setCanvas(canvas: OffscreenCanvas, dpr: number) {
     if (dpr !== Math.floor(dpr)) {
@@ -101,14 +69,8 @@ export class LineSpectrogram {
     this.renderWorker.postMessage(msg);
   }
 
-  public start() {
-    this.running = true;
-    this.animate();
-  }
-
-  public stop() {
-    this.running = false;
-  }
+  public stop() {}
+  public start() {}
 
   public destroy() {
     this.renderWorker.terminate();
