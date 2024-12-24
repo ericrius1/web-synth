@@ -2,7 +2,6 @@ import { get, type Writable, writable } from 'svelte/store';
 
 import { logError } from 'src/sentry';
 import { AsyncOnce } from 'src/util';
-import { LineSpectrogramFFTSize } from 'src/visualizations/LineSpectrogram/conf';
 import type {
   LineSpectrogramUIState,
   LineSpectrogramWorkerMessage,
@@ -26,21 +25,21 @@ const LineSpectrogramWasmBytes = new AsyncOnce(
 export class LineSpectrogram {
   public store: Writable<LineSpectrogramUIState>;
   private renderWorker: Worker;
-  private sharedFFTBuffer: SharedArrayBuffer;
+  private frequencyDataSAB: SharedArrayBuffer;
   private notifySAB: SharedArrayBuffer;
 
   constructor(
     initialState: LineSpectrogramUIState,
-    sharedFFTBuffer: SharedArrayBuffer,
+    frequencyDataSAB: SharedArrayBuffer,
     notifySAB: SharedArrayBuffer
   ) {
     this.store = writable(initialState);
-    this.sharedFFTBuffer = sharedFFTBuffer;
+    this.frequencyDataSAB = frequencyDataSAB;
     this.notifySAB = notifySAB;
     this.renderWorker = new Worker(new URL('./LineSpectrogram.worker', import.meta.url));
 
     this.init().catch(err => {
-      logError('Error initializing oscilloscope', err);
+      logError('Error initializing LineSpectrogram', err);
     });
   }
 
@@ -49,13 +48,14 @@ export class LineSpectrogram {
     const msg: LineSpectrogramWorkerMessage = {
       type: 'setWasmBytes',
       wasmBytes,
-      frequencyDataSAB: this.sharedFFTBuffer,
+      frequencyDataSAB: this.frequencyDataSAB,
       notifySAB: this.notifySAB,
     };
     this.renderWorker.postMessage(msg);
   }
 
   public setCanvas(canvas: OffscreenCanvas, dpr: number) {
+    console.log('canvas');
     if (dpr !== Math.floor(dpr)) {
       throw new Error('dpr must be an integer');
     }
@@ -65,6 +65,7 @@ export class LineSpectrogram {
   }
 
   public resizeView(width: number, height: number) {
+    console.log('resize view');
     const msg: LineSpectrogramWorkerMessage = { type: 'resizeCanvas', width, height };
     this.renderWorker.postMessage(msg);
   }

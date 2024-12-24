@@ -1,5 +1,5 @@
 <script lang="ts">
-  // import SignalAnalyzerGlobalControls from 'src/signalAnalyzer/SignalAnalyzerGlobalControls.svelte';
+  import SignalAnalyzerGlobalControls from 'src/signalAnalyzer/SignalAnalyzerGlobalControls.svelte';
   import type { SignalAnalyzerInst } from 'src/signalAnalyzer/SignalAnalyzerInst';
     import ChiFieldUi from 'src/visualizations/ChiField/ChiFieldUI.svelte';
   import LineSpectrogramUI from 'src/visualizations/LineSpectrogram/LineSpectrogramUI.svelte';
@@ -14,9 +14,9 @@
 <div class="root">
   <div class="line-spectrogram-wrapper">
     <LineSpectrogramUI inst={inst.lineSpectrogram} store={inst.lineSpectrogram.store} />
+    <!-- <SignalAnalyzerGlobalControls analyserNode={inst.input} store={inst.lineSpectrogram.store} /> -->
     <ChiFieldUi />
     
-    <!-- <SignalAnalyzerGlobalControls analyserNode={inst.input} store={inst.lineSpectrogram.store} /> -->
   </div>
   <OscilloscopeUI inst={inst.oscilloscope} uiState={inst.oscilloscopeUIState} />
 </div>

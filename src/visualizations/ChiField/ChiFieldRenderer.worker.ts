@@ -6,14 +6,28 @@ class ChiFieldRendererWorker {
   private vertexBuffer: GPUBuffer | null = null;
   private uniformBuffer: GPUBuffer | null = null;
   private bindGroup: GPUBindGroup | null = null;
-  private dpr = 1;
-  private startTime = performance.now();
 
+  private startTime = performance.now();
+  private notifySABI32: Int32Array | null = null;
+  private frequencyDataSABU8: Uint8Array | null = null;
+  private running = true;
+  /**
+   * Used to uniquely identify the current animation loop to avoid having more than one
+   * animation loop running at a time.
+   */
+  private runToken: number | null = null;
   async handleMessage(evt: MessageEvent) {
     switch (evt.data.type) {
       case 'init':
+        this.notifySABI32 = new Int32Array(evt.data.notifySAB);
+        this.frequencyDataSABU8 = new Uint8Array(evt.data.frequencyDataSAB);
         await this.initWebGPU(evt.data.canvas, evt.data.dpr);
-        this.startRenderLoop();
+        break;
+      case 'start':
+        this.start();
+        break;
+      case 'stop':
+        this.stop();
         break;
       case 'resize':
         if (this.canvas) {
@@ -171,6 +185,53 @@ class ChiFieldRendererWorker {
     });
   }
 
+  private async maybeStartAnimationLoop() {
+    if (!this.running || !this.notifySABI32 || !this.frequencyDataSABU8) {
+      return;
+    }
+
+    const runToken = Math.random() + Math.random() * 10 + Math.random() * 100;
+    this.runToken = runToken;
+
+    const hasWaitAsync = typeof Atomics.waitAsync === 'function';
+    if (!hasWaitAsync) {
+      console.warn(
+        'Atomics.waitAsync not available, falling back to less efficient `Atomics.wait`-based implementation'
+      );
+    }
+
+    const frequencyDataU8 = this.frequencyDataSABU8;
+    const frequencyDataBufPtr = (
+      this.wasmInstance.exports.line_spectrogram_get_frequency_data_ptr as () => number
+    )();
+    const process = this.wasmInstance.exports.line_spectrogram_process as () => void;
+    const getImageDataPtr = this.wasmInstance.exports
+      .line_spectrogram_get_image_data_ptr as () => number;
+
+    let lastRenderedFrameIx = -1;
+
+    while (true) {
+      if (this.runToken !== runToken) {
+        // A new animation loop has started, so stop this one.
+        return;
+      }
+
+      let res: 'not-equal' | 'timed-out' | 'ok';
+      if (hasWaitAsync) {
+        res = await Atomics.waitAsync(this.notifySABI32, 0, lastRenderedFrameIx).value;
+      } else {
+        res = Atomics.wait(this.notifySABI32, 0, lastRenderedFrameIx, 5);
+        // yield to allow microtasks to run
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
+      if (res === 'timed-out') {
+        continue;
+      }
+      lastRenderedFrameIx = Atomics.load(this.notifySABI32, 0);
+    }
+  }
+
   private render = () => {
     if (
       !this.device ||
@@ -208,11 +269,15 @@ class ChiFieldRendererWorker {
 
     this.device.queue.submit([commandEncoder.finish()]);
   };
+  private start() {
+    this.running = true;
+    this.maybeStartAnimationLoop();
+  }
 
-  private startRenderLoop = () => {
-    this.render();
-    requestAnimationFrame(this.startRenderLoop);
-  };
+  private stop() {
+    this.running = false;
+    this.runToken = null;
+  }
 }
 
 const worker = new ChiFieldRendererWorker();

@@ -52,7 +52,7 @@ export class SignalAnalyzerInst {
   public oscilloscopeUIState: Writable<OscilloscopeUIState>;
   public chiFieldUIState: Writable<ChiFieldUIState>;
   public chiField: ChiField;
-  private sharedFFTBuffer: SharedArrayBuffer;
+  private frequencyDataSAB: SharedArrayBuffer;
 
   private notifySAB: SharedArrayBuffer;
   private notifySABI32: Int32Array;
@@ -75,7 +75,7 @@ export class SignalAnalyzerInst {
     this.silentGain.connect(ctx.destination);
 
     const bufferSize = Math.max(LineSpectrogramFFTSize / 2, Int32Array.BYTES_PER_ELEMENT * 8);
-    this.sharedFFTBuffer = new SharedArrayBuffer(bufferSize);
+    this.frequencyDataSAB = new SharedArrayBuffer(bufferSize);
 
     this.notifySAB = new SharedArrayBuffer(4);
     this.notifySABI32 = new Int32Array(this.notifySAB);
@@ -87,13 +87,13 @@ export class SignalAnalyzerInst {
     this.oscilloscope = new Oscilloscope(initialState.oscilloscopeUIState);
     this.chiField = new ChiField(
       initialState.chiFieldUIState,
-      this.sharedFFTBuffer,
+      this.frequencyDataSAB,
       this.notifySAB
     );
     this.lineSpectrogram = new LineSpectrogram(
       initialState.lineSpectrogramUIState,
-      this.input
-      // this.sharedFFTBuffer
+      this.frequencyDataSAB,
+      this.notifySAB
     );
 
     this.init().catch(err => {
@@ -141,10 +141,10 @@ export class SignalAnalyzerInst {
 
     const frameIx = (this.frameIx + 1) % 100_000;
     this.frameIx = frameIx;
-    console.log(this.frameIx);
 
     // Browser is hilarious and doesn't let us write to shared buffer directly, so we have to waste a copy.
     this.input.getByteFrequencyData(this.frequencyDataBufTemp);
+    // console.log(this.frequencyDataBufTemp[50]);
     this.frequencyDataSABU8.set(this.frequencyDataBufTemp);
     Atomics.store(this.notifySABI32, 0, frameIx);
     Atomics.notify(this.notifySABI32, 0);
@@ -165,6 +165,7 @@ export class SignalAnalyzerInst {
     this.chiField.start();
 
     this.running = true;
+    console.log('RESUME');
     this.animate();
   }
 

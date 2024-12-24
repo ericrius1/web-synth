@@ -162,6 +162,7 @@ class LineSpectrogramWorker {
         imageDataPtr + 4 * this.canvas.width * this.canvas.height
       );
       const imageData = new ImageData(imageDataU8, this.canvas.width, this.canvas.height);
+
       this.ctx.putImageData(imageData, 0, 0);
     }
   }

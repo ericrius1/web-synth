@@ -23,18 +23,20 @@ export class ChiField {
   public store: Writable<ChiFieldUIState>;
   private renderWorker: Worker;
   private frequencyDataSAB: SharedArrayBuffer;
+  private notifySAB: SharedArrayBuffer;
   private running = false;
 
   constructor(
     initialState: ChiFieldUIState,
-    sharedFFTBuffer: SharedArrayBuffer,
+    frequencyDataSAB: SharedArrayBuffer,
     notifySAB: SharedArrayBuffer
   ) {
     this.store = writable(initialState);
 
     this.renderWorker = new Worker(new URL('./ChiFieldRenderer.worker', import.meta.url));
 
-    this.frequencyDataSAB = sharedFFTBuffer;
+    this.frequencyDataSAB = frequencyDataSAB;
+    this.notifySAB = notifySAB;
 
     this.init().catch(err => {
       logError('Error initializing oscilloscope', err);
