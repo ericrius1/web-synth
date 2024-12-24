@@ -1,7 +1,6 @@
 export type ChiFieldWorkerMessage =
   | {
-      type: 'setWasmBytes';
-      wasmBytes: ArrayBuffer;
+      type: 'init';
       frequencyDataSAB: SharedArrayBuffer;
       notifySAB: SharedArrayBuffer;
     }

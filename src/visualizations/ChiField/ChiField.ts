@@ -1,18 +1,6 @@
 import { get, type Writable, writable } from 'svelte/store';
 
-import { logError } from 'src/sentry';
-import { AsyncOnce } from 'src/util';
 import type { ChiFieldUIState, ChiFieldWorkerMessage } from 'src/visualizations/ChiField/types';
-
-const ChiFieldWasmBytes = new AsyncOnce(
-  () =>
-    fetch(
-      process.env.ASSET_PATH +
-        'spectrum_viz_full.wasm?cacheBust=' +
-        (window.location.href.includes('localhost') ? '' : genRandomStringID())
-    ).then(res => res.arrayBuffer()),
-  true
-);
 
 /**
  * Visualization of the immediate spectrum of audio input signal.  Uses `AnalyserNode` to perform STFFT and
@@ -38,9 +26,7 @@ export class ChiField {
     this.frequencyDataSAB = frequencyDataSAB;
     this.notifySAB = notifySAB;
 
-    this.init().catch(err => {
-      logError('Error initializing oscilloscope', err);
-    });
+    this.init();
   }
 
   public getSharedArrayBuffer(): SharedArrayBuffer {
@@ -48,10 +34,8 @@ export class ChiField {
   }
 
   private async init() {
-    const wasmBytes = await ChiFieldWasmBytes.get();
     const msg: ChiFieldWorkerMessage = {
-      type: 'setWasmBytes',
-      wasmBytes,
+      type: 'init',
       frequencyDataSAB: this.frequencyDataSAB,
       notifySAB: this.notifySAB,
     };

@@ -23,12 +23,7 @@ class ChiFieldRendererWorker {
         this.frequencyDataSABU8 = new Uint8Array(evt.data.frequencyDataSAB);
         await this.initWebGPU(evt.data.canvas, evt.data.dpr);
         break;
-      case 'start':
-        this.start();
-        break;
-      case 'stop':
-        this.stop();
-        break;
+
       case 'resize':
         if (this.canvas) {
           this.canvas.width = evt.data.width;
@@ -201,12 +196,6 @@ class ChiFieldRendererWorker {
     }
 
     const frequencyDataU8 = this.frequencyDataSABU8;
-    const frequencyDataBufPtr = (
-      this.wasmInstance.exports.line_spectrogram_get_frequency_data_ptr as () => number
-    )();
-    const process = this.wasmInstance.exports.line_spectrogram_process as () => void;
-    const getImageDataPtr = this.wasmInstance.exports
-      .line_spectrogram_get_image_data_ptr as () => number;
 
     let lastRenderedFrameIx = -1;
 
@@ -269,15 +258,6 @@ class ChiFieldRendererWorker {
 
     this.device.queue.submit([commandEncoder.finish()]);
   };
-  private start() {
-    this.running = true;
-    this.maybeStartAnimationLoop();
-  }
-
-  private stop() {
-    this.running = false;
-    this.runToken = null;
-  }
 }
 
 const worker = new ChiFieldRendererWorker();

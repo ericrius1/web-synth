@@ -30,21 +30,13 @@ class LineSpectrogramWorker {
           throw new Error('Could not get 2d context from canvas');
         }
         break;
-      case 'start':
-        this.start();
-        break;
-      case 'stop':
-        this.stop();
-        break;
+
       case 'resizeCanvas':
         this.resizeView(evt.data.width, evt.data.height);
         break;
       default:
         console.error('Unknown message type in LineSpectrogramWorker', evt);
     }
-
-    this.maybeSetViewToWasm();
-    this.maybeStartAnimationLoop();
   }
 
   private getWasmMemoryBufferU8Clamped(): Uint8ClampedArray {
@@ -165,16 +157,6 @@ class LineSpectrogramWorker {
 
       this.ctx.putImageData(imageData, 0, 0);
     }
-  }
-
-  private start() {
-    this.running = true;
-    this.maybeStartAnimationLoop();
-  }
-
-  private stop() {
-    this.running = false;
-    this.runToken = null;
   }
 }
 
