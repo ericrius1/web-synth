@@ -21,7 +21,8 @@ class ChiFieldRendererWorker {
       case 'init':
         this.notifySABI32 = new Int32Array(evt.data.notifySAB);
         this.frequencyDataSABU8 = new Uint8Array(evt.data.frequencyDataSAB);
-        await this.initWebGPU(evt.data.canvas, evt.data.dpr);
+        // await this.initWebGPU(evt.data.canvas, evt.data.dpr);
+        this.maybeStartAnimationLoop();
         break;
 
       case 'resize':
@@ -200,6 +201,8 @@ class ChiFieldRendererWorker {
     let lastRenderedFrameIx = -1;
 
     while (true) {
+      console.log(frequencyDataU8[200]);
+
       if (this.runToken !== runToken) {
         // A new animation loop has started, so stop this one.
         return;
@@ -217,6 +220,7 @@ class ChiFieldRendererWorker {
       if (res === 'timed-out') {
         continue;
       }
+
       lastRenderedFrameIx = Atomics.load(this.notifySABI32, 0);
     }
   }

@@ -56,7 +56,6 @@ export class SignalAnalyzerInst {
 
   private notifySAB: SharedArrayBuffer;
   private notifySABI32: Int32Array;
-  private frequencyDataSAB: SharedArrayBuffer;
   private frequencyDataSABU8: Uint8Array;
   private frequencyDataBufTemp: Uint8Array;
   private running = false;
@@ -79,7 +78,6 @@ export class SignalAnalyzerInst {
 
     this.notifySAB = new SharedArrayBuffer(4);
     this.notifySABI32 = new Int32Array(this.notifySAB);
-    this.frequencyDataSAB = new SharedArrayBuffer(LineSpectrogramFFTSize / 2);
     this.frequencyDataSABU8 = new Uint8Array(this.frequencyDataSAB); // this is a view over the shared raw buffer. Lets you read/write
     // to the shared buffer as 8-bit unsigned integers
     this.frequencyDataBufTemp = new Uint8Array(LineSpectrogramFFTSize / 2);

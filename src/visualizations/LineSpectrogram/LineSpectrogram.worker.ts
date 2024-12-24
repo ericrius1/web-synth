@@ -37,6 +37,9 @@ class LineSpectrogramWorker {
       default:
         console.error('Unknown message type in LineSpectrogramWorker', evt);
     }
+
+    this.maybeSetViewToWasm();
+    this.maybeStartAnimationLoop();
   }
 
   private getWasmMemoryBufferU8Clamped(): Uint8ClampedArray {

@@ -12,7 +12,6 @@ export class ChiField {
   private renderWorker: Worker;
   private frequencyDataSAB: SharedArrayBuffer;
   private notifySAB: SharedArrayBuffer;
-  private running = false;
 
   constructor(
     initialState: ChiFieldUIState,
@@ -29,10 +28,6 @@ export class ChiField {
     this.init();
   }
 
-  public getSharedArrayBuffer(): SharedArrayBuffer {
-    return this.frequencyDataSAB;
-  }
-
   private async init() {
     const msg: ChiFieldWorkerMessage = {
       type: 'init',
@@ -41,16 +36,6 @@ export class ChiField {
     };
     this.renderWorker.postMessage(msg);
   }
-
-  // We need to drive animation from the main thread because getting the frequency data from the
-  // analyser node can only be done on the main thread.
-  private animate = () => {
-    if (!this.running) {
-      return;
-    }
-
-    requestAnimationFrame(() => this.animate());
-  };
 
   public setCanvas(canvas: OffscreenCanvas, dpr: number) {
     if (dpr !== Math.floor(dpr)) {
