@@ -13,7 +13,7 @@ extern "C" {
 }
 
 #[allow(dead_code)]
-pub(self) fn log(msg: &str) {
+pub(crate) fn log(msg: &str) {
   let bytes = msg.as_bytes();
   let len = bytes.len();
   let ptr = bytes.as_ptr();
@@ -23,6 +23,7 @@ pub(self) fn log(msg: &str) {
 static mut DID_SET_PANIC_HOOK: bool = false;
 
 fn maybe_set_panic_hook() {
+
   unsafe {
     if DID_SET_PANIC_HOOK {
       return;

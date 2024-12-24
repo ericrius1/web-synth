@@ -1,5 +1,6 @@
 use canvas_utils::{write_pixel_bilinear, VizView};
 use ndarray::ArrayView1;
+use super::log;  
 
 use super::{
   conf::{CLEAR_COLOR, FFT_BUFFER_SIZE, LINE_COLOR},
@@ -41,6 +42,7 @@ impl LineSpectrumCtx {
   }
 
   pub fn process(&mut self) {
+
     if self.view.width == 0 || self.view.height == 0 {
       return;
     }
@@ -61,6 +63,12 @@ impl LineSpectrumCtx {
     let draw_point = |x: f32, y: f32| write_pixel_bilinear(pixels, &self.view, x, y, LINE_COLOR);
 
     let ys: ArrayView1<f32> = ArrayView1::from(&self.frequency_data_buf_f32);
+
+    let first_point = format!("a point: {}", ys[500]);
+    log(&first_point.to_string());
+    // Print data for first point in frequency buffer
+
+    
 
     let points_per_pixel = 2.5;
     draw_cubic_spline(
