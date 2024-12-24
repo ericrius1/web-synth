@@ -64,8 +64,8 @@ impl LineSpectrumCtx {
 
     let ys: ArrayView1<f32> = ArrayView1::from(&self.frequency_data_buf_f32);
 
-    let first_point = format!("a point: {}", ys[500]);
-    log(&first_point.to_string());
+    let first_point = format!("a point: {}", ys[200]);
+    // log(&first_point.to_string());
     // Print data for first point in frequency buffer
 
     
